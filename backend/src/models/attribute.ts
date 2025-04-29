@@ -5,7 +5,7 @@ export interface Attribute {
   user_id: number;
   key: string;
   value: string;
-  where_used: string;
+  where_used: string | string[];
   created_at: Date;
   updated_at: Date;
 }
@@ -14,20 +14,50 @@ export interface AttributeInput {
   user_id: number;
   key: string;
   value: string;
-  where_used: string;
+  where_used: string | string[];
 }
 
+const parseWhereUsed = (whereUsed: string | null): string[] => {
+  if (!whereUsed) return [];
+  try {
+    const parsed = JSON.parse(whereUsed);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    // If not valid JSON, treat as a single string
+    return [whereUsed];
+  }
+};
+
 export const createAttribute = async (attributeInput: AttributeInput): Promise<Attribute> => {
+  const whereUsed = Array.isArray(attributeInput.where_used) 
+    ? JSON.stringify(attributeInput.where_used)
+    : attributeInput.where_used;
+
   const result = await query(
     'INSERT INTO attributes (user_id, key, value, where_used) VALUES ($1, $2, $3, $4) RETURNING *',
-    [attributeInput.user_id, attributeInput.key, attributeInput.value, attributeInput.where_used]
+    [attributeInput.user_id, attributeInput.key, attributeInput.value, whereUsed]
   );
-  return result.rows[0];
+  return {
+    ...result.rows[0],
+    where_used: parseWhereUsed(result.rows[0].where_used)
+  };
 };
 
 export const getUserAttributes = async (userId: number): Promise<Attribute[]> => {
   const result = await query('SELECT * FROM attributes WHERE user_id = $1', [userId]);
-  return result.rows;
+  return result.rows.map(row => ({
+    ...row,
+    where_used: parseWhereUsed(row.where_used)
+  }));
+};
+
+export const getAttributeById = async (id: number): Promise<Attribute | null> => {
+  const result = await query('SELECT * FROM attributes WHERE id = $1', [id]);
+  if (!result.rows[0]) return null;
+  return {
+    ...result.rows[0],
+    where_used: parseWhereUsed(result.rows[0].where_used)
+  };
 };
 
 export const updateAttribute = async (id: number, value: string): Promise<Attribute> => {
@@ -35,7 +65,10 @@ export const updateAttribute = async (id: number, value: string): Promise<Attrib
     'UPDATE attributes SET value = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
     [value, id]
   );
-  return result.rows[0];
+  return {
+    ...result.rows[0],
+    where_used: parseWhereUsed(result.rows[0].where_used)
+  };
 };
 
 export const deleteAttribute = async (id: number): Promise<void> => {

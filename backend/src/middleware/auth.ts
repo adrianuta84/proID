@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { findUserByEmail } from '../models/user';
+import { getUserById } from '../models/user';
 
 declare global {
   namespace Express {
@@ -10,7 +10,14 @@ declare global {
   }
 }
 
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+export interface AuthRequest extends Request {
+  user?: {
+    id: number;
+    is_admin: boolean;
+  };
+}
+
+export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -19,20 +26,26 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: number, email: string };
-    const user = await findUserByEmail(decoded.email);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { id: number };
+    const user = await getUserById(decoded.id);
     
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    if (user.id !== decoded.id) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    req.user = user;
+    req.user = {
+      id: user.id,
+      is_admin: user.is_admin
+    };
     next();
   } catch (error) {
     return res.status(403).json({ message: 'Invalid token' });
   }
+};
+
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user?.is_admin) {
+    return res.status(403).json({ message: 'Admin privileges required' });
+  }
+  next();
 }; 
