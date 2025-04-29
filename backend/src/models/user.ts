@@ -30,6 +30,20 @@ export const findUserByEmail = async (email: string): Promise<User | null> => {
   return result.rows[0] || null;
 };
 
+export const findUserById = async (id: number): Promise<User | null> => {
+  const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+  return result.rows[0] || null;
+};
+
 export const verifyPassword = async (user: User, password: string): Promise<boolean> => {
   return bcrypt.compare(password, user.password_hash);
+};
+
+export const updateUserPassword = async (userId: number, newPassword: string): Promise<User> => {
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const result = await query(
+    'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [hashedPassword, userId]
+  );
+  return result.rows[0];
 }; 

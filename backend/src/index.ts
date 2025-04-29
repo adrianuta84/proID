@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, verifyPassword } from './models/user';
+import { createUser, findUserByEmail, verifyPassword, findUserById, updateUserPassword } from './models/user';
 import { createAttribute, getUserAttributes, updateAttribute, deleteAttribute } from './models/attribute';
 import { authenticateToken } from './middleware/auth';
 
@@ -57,6 +57,28 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: 'Error logging in' });
+  }
+});
+
+// User settings routes
+app.put('/api/users/password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await findUserById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!(await verifyPassword(user, currentPassword))) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    const updatedUser = await updateUserPassword(user.id, newPassword);
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ message: 'Error updating password' });
   }
 });
 
