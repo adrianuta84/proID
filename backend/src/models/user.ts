@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 
 export interface User {
   id: number;
+  username: string;
   name: string;
   email: string;
   password_hash: string;
@@ -12,6 +13,7 @@ export interface User {
 }
 
 export interface UserInput {
+  username: string;
   name: string;
   email: string;
   password: string;
@@ -21,10 +23,15 @@ export interface UserInput {
 export const createUser = async (userInput: UserInput): Promise<User> => {
   const hashedPassword = await bcrypt.hash(userInput.password, 10);
   const result = await query(
-    'INSERT INTO users (name, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING *',
-    [userInput.name, userInput.email, hashedPassword, userInput.is_admin || false]
+    'INSERT INTO users (username, name, email, password_hash, is_admin) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [userInput.username, userInput.name, userInput.email, hashedPassword, userInput.is_admin || false]
   );
   return result.rows[0];
+};
+
+export const getUserByUsername = async (username: string): Promise<User | null> => {
+  const result = await query('SELECT * FROM users WHERE username = $1', [username]);
+  return result.rows[0] || null;
 };
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
@@ -38,7 +45,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
 };
 
 export const getAllUsers = async (): Promise<User[]> => {
-  const result = await query('SELECT id, name, email, is_admin, created_at, updated_at FROM users');
+  const result = await query('SELECT id, username, name, email, is_admin, created_at, updated_at FROM users');
   return result.rows;
 };
 
@@ -50,6 +57,12 @@ export const updateUser = async (id: number, userData: Partial<UserInput>): Prom
   const updates: string[] = [];
   const values: any[] = [];
   let paramCount = 1;
+
+  if (userData.username) {
+    updates.push(`username = $${paramCount}`);
+    values.push(userData.username);
+    paramCount++;
+  }
 
   if (userData.name) {
     updates.push(`name = $${paramCount}`);

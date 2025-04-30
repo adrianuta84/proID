@@ -22,8 +22,13 @@ RUN npm run build
 # Rebuild bcrypt for Alpine
 RUN npm rebuild bcrypt --build-from-source
 
+# Create uploads directory
+RUN mkdir -p /app/uploads
+
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 3000
 
 # Start command
-CMD ["npm", "start"] 
+CMD ["node", "dist/index.js"] 

@@ -5,7 +5,11 @@ import { getUserById } from '../models/user';
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: {
+        id: number;
+        is_admin: boolean;
+      };
+      file?: Express.Multer.File;
     }
   }
 }
@@ -15,6 +19,7 @@ export interface AuthRequest extends Request {
     id: number;
     is_admin: boolean;
   };
+  file?: Express.Multer.File;
 }
 
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {

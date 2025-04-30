@@ -24,8 +24,11 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/proid
       - JWT_SECRET=your-super-secret-key-change-in-production
       - NODE_ENV=development
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -53,4 +56,5 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  uploads_data: 
